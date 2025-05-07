@@ -5,13 +5,22 @@ let startCoordinates = [];
 let jumpChance = 2;
 let gameOver = false;
 let endTimer = 0;
+let level = 1;
+let menuOpen = false;
+let menubg;
+let choice1;
+let choice2;
 
 function preload(){
     cube = loadImage('assets/cube.png');
+    cube2 = loadImage('assets/cube2.png');
     startGameImg = loadImage('assets/startgame.png');
     endGameImg = loadImage('assets/clear!.png')
     spike = loadImage('assets/spike.png');
-    tileMap1 =  tileMap = loadStrings('stages/tiles1.txt');    
+    menu = loadImage('assets/menu.png')
+    menubgImg = loadImage('assets/menubg.png')
+    tileMap1 = loadStrings('stages/tiles1.txt');
+    tileMap2 = loadStrings('stages/tiles2.txt');
     
 }
 
@@ -53,25 +62,50 @@ function setup() {
     finishline.visible = false;
     finishline.collider = 'static';
 
-    new Tiles(tileMap, 0, 0, 50, 50);     
+    new Tiles(tileMap1, 0, 0, 50, 50);     
+
     startImg = new Sprite( (width/2), height/2, 190, 90);
     startImg.img = startGameImg;
-    startImg.collider = 'static';
+    startImg.collider = 'none';
+    // menu
+    menuImg = new Sprite(50,20,92,29);
+    menuImg.img = menu;
+    menuImg.collider = 'static';
+
+    menubg = new Sprite (width/2, height/2, 240, 140, 'static');
+    menubg.img = menubgImg;
+    choice1 = new Sprite (width/2-50,height/2, 50, 50, 'static');
+    choice2 = new Sprite (width/2+50,height/2, 50, 50, 'static');
+    choice1.img = cube;
+    choice2.img = cube2;
+
+    closeMenu();
+
 }
 
 function draw() {
     drawGradientBackground();
     
     // Start game on click
-    if (!startGame && mouse.presses()) {
-      startGame = true;
-      startImg.visible = false;
+    if (!startGame && (mouse.presses()||kb.presses('space'))) {
+        if (menuImg.mouse.hovering()  && menuImg.visible === true) {
+            menuOpen = true;
+            openMenu();
+        }else if (menuOpen === false){
+            startGame = true;
+            startImg.visible = false;
+            menuImg.visible = false;
+        }
+         choiceSelect();
+      
     }else if(!startGame){
         if ((frameCount % 60) < 60 / 2) {
             startImg.visible = true;  // ON for 30 frames
         } else {
             startImg.visible = false; // OFF for 30 frames
         } 
+
+        menuImg.visible = true;
     }
   
     // Move box if game started
@@ -118,16 +152,14 @@ function draw() {
 
         if (gameOver) {
             // Wait for 3 seconds (180 frames)
-            if (frameCount - endTimer > 120) {
+            if (frameCount - endTimer > 180) {
                 endImg.visible = false;
                 resetGame();
                 startGame = false;
                 gameOver = false;
+                level += 1;
+                loadLevel(level);
             }
-            console.log("FrameCount")
-            console.log(frameCount)
-            console.log("EndTimer")
-            console.log(endTimer)
         }
         
 
@@ -180,5 +212,54 @@ function triggerGameOver() {
 		endImg = new Sprite(box.x, height / 2, 126, 24);
 		endImg.collider = 'static';
 		endImg.img = endGameImg;
+	}
+}
+
+function loadLevel(level) {
+	// Clear old tiles
+	ground.removeAll();
+	sharp.removeAll();
+	orbs.removeAll();
+	finishline.removeAll();
+    lastlevel = 2;
+    if (lastlevel < level) {level = 1};
+
+	// Load tile map
+	if (level === 1) {
+		new Tiles(tileMap1, 0, 0, 50, 50);
+	} else if (level === 2) {
+		new Tiles(tileMap2, 0, 0, 50, 50);
+	}
+}
+
+function openMenu(){
+    menubg.visible = true;
+    choice1.visible = true;
+    choice2.visible = true;
+    menubg.collider = 'static';
+    choice1.collider = 'static'
+    choice2.collider = 'static';   
+}
+
+function closeMenu(){
+    menuOpen = false;
+    menubg.visible = false;
+    choice1.visible = false;
+    choice2.visible = false;
+    menubg.collider = 'none';
+    choice1.collider = 'none';
+    choice2.collider = 'none';
+}
+
+function choiceSelect() {
+	if (menuOpen) {
+		let clicked = world.getSpriteAt(mouse);
+		if (clicked == choice1) {
+			box.img = cube;
+			closeMenu();
+		} else if (clicked == choice2) {
+			box.img = cube2;
+			closeMenu();
+		}
 	}
 }
