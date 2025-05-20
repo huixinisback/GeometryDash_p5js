@@ -2,6 +2,7 @@
 let box;
 // game variables
 let startGame = false;
+let mapUsed;
 let startCoordinates = [];
 let jumpChance = 2;
 let gameOver = false;
@@ -36,7 +37,7 @@ let choice2;
 
 //load assets before the code runs
 function preload(){
-    bg = loadImage('assets/geobg.png')
+    bg = loadImage('assets/geobg.png');
     cube = loadImage('assets/cube.png');
     cube2 = loadImage('assets/cube2.png');
     startGameImg = loadImage('assets/startgame.png');
@@ -50,11 +51,13 @@ function preload(){
 }
 
 function setup() {
-    new Canvas(800, 600);
-    world.gravity.y = 10;
+    new Canvas(700, 600);
+    world.gravity.y = 32;
 
     box = new Sprite(50, height / 2, 50, 50);     
     box.img = cube;
+    box.friction = 0;
+    box.bounciness = 0;
     startCoordinates = [50,height/2]; // where the sprite should start from each game
 
     ground = new Group();
@@ -63,13 +66,14 @@ function setup() {
     ground.h = 50;
     ground.collider = 'static'; // will collide with other sprites, and stay in programmed coordinates, will not move when collided 
     ground.color = 'black';
-    ground.stroke = 'white'
+    ground.stroke = 'rgba(0,0,0,0)';
     
     orbs = new Group();
     orbs.tile = 'o';
     orbs.d = 24;
     orbs.collider = 'static';
     orbs.color = 'white';
+    orbs.strokeWeight = 0;
     
     sharp = new Group();
     sharp.tile = 's';
@@ -85,7 +89,10 @@ function setup() {
     finishline.visible = false;
     finishline.collider = 'static';
 
+    particles = new Group();
+
     new Tiles(tileMap1, 0, 0, 50, 50);     
+    mapUsed = tileMap1;
 
     startImg = new Sprite( (width/2), height/2, 190, 90);
     startImg.img = startGameImg;
@@ -133,29 +140,28 @@ function draw() {
     }
   
     if (startGame) { // start game functions
-      box.vel.x = 2; // start moving the box at "2m/s"
+      box.vel.x = 8; // start moving the box at "2m/s"
   
         // Camera follow once box crosses screen center
         if (box.x >= width / 2) {
             camera.x = box.x; // camera tracking for the player sprite
-            
         } else {
             camera.x = 400; // keep camera fixed initially
-            
         }
-
+        
         for (let orb of orbs) {
             if (box.colliding(orb)) {
                 // hide the orb as a "collected" effect
-                orb.visible = false;;
+                orb.visible = false;
+                orb.collider = 'none';
                 // boost/bonus from orb
-                jumpChance = 4;
-
+                box.vel.y = -5;
             }
         }
 
         for (let tile of ground) {
             if (box.colliding(tile)) {
+                if (abs(tile.x - box.x) > 100) continue; // skip far tiles
                 //declaring safe zone
                 let leftEdge = tile.x - tile.w / 2;
                 let leftEdgeHeight = tile.y - tile.h / 2;
@@ -193,10 +199,9 @@ function draw() {
         }
         
 
-        if (kb.presses('space')||mouse.presses()&& jumpChance > 0){
-            box.vel.y = -5; // upwards push
-            box.rotation +=20 // rotational angle
-            box.rotationSpeed = 1; 
+        if ((kb.presses('space')||mouse.presses())&& jumpChance > 0 && !gameOver){
+            box.vel.y = -10; // upwards push
+            box.rotateTo(359, 15); // 1 full turn
             jumpChance-=1; // decrease jump, prevent multiple jumps in the air
         }
 
@@ -204,37 +209,54 @@ function draw() {
         if(box.collides(ground) && jumpChance < 2){
             jumpChance = 2;
         }
+
+        if (box.colliding(ground) && box.vel.x >= 0.5) {
+            box.rotation = 0; // make sure the box is upright
+            let particle = new Sprite(box.x, box.y + box.h / 2, 8, 8, 'none');
+            particle.color = 'white';
+            particle.strokeWeight = 0;
+            particle.vel.x = -5;
+            particle.vel.y = random(-2, 0);
+            particle.life = 30;
+            particles.add(particle);
+        }
       
     }
 
 }
 
-  // tint black and white image
-  // changing back ground colour
+// tint black and white image
+// changing back ground colour
 function drawBackground() {
+    let lastRow = mapUsed[mapUsed.length - 1];
+    let numCols = lastRow.length;
+    let totalJourney = numCols * 50;
+    let progress = map(box.x, 0, totalJourney, -100, 0);
     c1 = color('#9933ff'); // Purple
     c2 = color('#4169e1'); // Blue
-    // Create a looping value from 0 to 1 and back (triangle wave)
+    // Create a looping value from 0 to 1 and back 
     let amt = (sin(frameCount * 0.5) + 1) / 2;
     // Get the interpolated color
     let blend = lerpColor(c1, c2, amt); // p5.js function to blend color
     // Apply tint and draw background
     tint(blend);
-    image(bg, 0, 0, width, height); // Draw the tinted background image
+    image(bg, progress, 0, 800, 600); // Draw the tinted background image
     noTint(); //  prevents tint from affecting other images
 }   
 
 function resetGame() {
+    particles.removeAll();
     startGame = false;
+    // stop box movement
+    box.vel.y = 0;
+    box.vel.x = 0;
+    box.rotation = 0;
     // put the box back to the starting position
     box.x = startCoordinates[0]; 
     box.y = startCoordinates[1];
-    // stop box movement
-    box.vel.y = 0;
-    box.rotation = 0;
     jumpChance = 2; // reset jump chance
     // reset camera view
-    camera.x = box.x + 350
+    camera.x = width / 2; // default camera ce  nter
     // show hiddent orbs
     for (let orb of orbs) {
         orb.visible = true;
@@ -267,8 +289,10 @@ function loadLevel() {
 	// Load tile map for each level
 	if (level === 1) {
 		new Tiles(tileMap1, 0, 0, 50, 50);
+        mapUsed = tileMap1;
 	} else if (level === 2) {
 		new Tiles(tileMap2, 0, 0, 50, 50);
+        mapUsed = tileMap2;
 	}
 }
 
