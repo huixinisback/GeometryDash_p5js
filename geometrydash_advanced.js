@@ -9,6 +9,7 @@ let gameOver = false;
 let endTimer = 0;
 let level = 1;
 let lastlevel = 2;
+let lost = true;
 
 //asset names
 let cube;
@@ -35,6 +36,11 @@ let menubg;
 let choice1;
 let choice2;
 
+//sound assets
+let backgroundTrack;
+let failSound;
+let passSound;
+
 //load assets before the code runs
 function preload(){
     bg = loadImage('assets/geobg.png');
@@ -47,7 +53,9 @@ function preload(){
     menubgImg = loadImage('assets/menubg.png')
     tileMap1 = loadStrings('stages/tiles1.txt');
     tileMap2 = loadStrings('stages/tiles2.txt');
-    
+    backgroundTrack = createAudio('assets/stereo-madness.mp3');
+    failSound = createAudio('assets/geometry-dash-death-sound.mp3');
+    passSound = createAudio('assets/game-start.mp3');
 }
 
 function setup() {
@@ -140,7 +148,8 @@ function draw() {
     }
   
     if (startGame) { // start game functions
-      box.vel.x = 8; // start moving the box at "2m/s"
+        backgroundTrack.play();
+        box.vel.x = 8; // start moving the box at "2m/s"
   
         // Camera follow once box crosses screen center
         if (box.x >= width / 2) {
@@ -156,6 +165,7 @@ function draw() {
                 orb.collider = 'none';
                 // boost/bonus from orb
                 box.vel.y = -5;
+                jumpChance = 2;
             }
         }
 
@@ -167,6 +177,7 @@ function draw() {
                 let leftEdgeHeight = tile.y - tile.h / 2;
                 // if not safe zone touched, reset game
                 if (box.x < leftEdge && box.y > leftEdgeHeight) {
+                    lost = true;
                     resetGame();
                 }
             }
@@ -175,23 +186,25 @@ function draw() {
          // if sharp objects touched, reset game
         if (box.collides(sharp)){
             startGame = false;
+            lost = true;
             resetGame();
         }
         
         // successful clear sequence if end is reached
         if (box.collides(finishline)){
+            lost = false;
             triggerGameOver();
         }
 
         // game over sequence
         if (gameOver) {
-            // Wait for 3 seconds (180 frames)
-            if (frameCount - endTimer > 180) {
+            // Wait for 2 seconds (120 frames)
+            if (frameCount - endTimer > 120) {
                 endImg.visible = false; // hide the 'clear!' image
                 //reset the game and variables
-                resetGame();
                 startGame = false;
                 gameOver = false;
+                resetGame();
                 // increase the level and load new map
                 level += 1;
                 loadLevel();
@@ -245,6 +258,11 @@ function drawBackground() {
 }   
 
 function resetGame() {
+    if(lost){
+        backgroundTrack.stop();
+        failSound.play();
+    }
+
     particles.removeAll();
     startGame = false;
     // stop box movement
@@ -265,6 +283,8 @@ function resetGame() {
 }
   
 function triggerGameOver() {
+    backgroundTrack.stop();
+    passSound.play();
 	if (!gameOver) {
         // stop box movement
         box.vel.x = 0;
